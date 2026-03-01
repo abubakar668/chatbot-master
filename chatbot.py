@@ -33,6 +33,11 @@ remove_punct_dict = dict((ord(punct), None) for punct in string.punctuation)
 def LemNormalize(text):
     return LemTokens(nltk.word_tokenize(text.lower().translate(remove_punct_dict)))
 
+def normalize_for_match(text):
+    """Strip punctuation and collapse spaces for flexible response matching."""
+    cleaned = text.lower().translate(remove_punct_dict)
+    return ' '.join(cleaned.split())
+
 # Keyword Matching
 GREETING_INPUTS = ("hello", "hi", "greetings", "sup", "what's up","hey",)
 GREETING_RESPONSES = ["hi", "hey", "*nods*", "hi there", "hello", "I am glad! You are talking to me"]
@@ -106,6 +111,29 @@ ADDITIONAL_RESPONSES = {
     
 }
 
+# Help command: example prompts to show when user asks for help
+HELP_MESSAGE = (
+    "I can chat, answer questions, and tell jokes! Try asking me:\n"
+    "  • 'Tell me a joke'  • 'How are you?'  • \"What's the capital of Japan?\"\n"
+    "  • 'Tell me a fun fact'  • 'Tell me about artificial intelligence'\n"
+    "Type 'bye' to exit, or 'thanks' when you're done."
+)
+HELP_TRIGGERS = {"help", "what can you do", "what can you do for me", "options", "commands"}
+
+def get_additional_response(user_response):
+    """Find a matching predefined response: exact match, normalized match, or key contained in input."""
+    normalized_input = normalize_for_match(user_response)
+    # Exact match (original or normalized)
+    if user_response in ADDITIONAL_RESPONSES:
+        return ADDITIONAL_RESPONSES[user_response]
+    if normalized_input in ADDITIONAL_RESPONSES:
+        return ADDITIONAL_RESPONSES[normalized_input]
+    # Any key contained in user input (prefer longest match)
+    for key in sorted(ADDITIONAL_RESPONSES.keys(), key=len, reverse=True):
+        if key in normalized_input or normalize_for_match(key) in normalized_input:
+            return ADDITIONAL_RESPONSES[key]
+    return None
+
 # Update the response function to include additional responses
 def response(user_response):
     robo_response = ''
@@ -123,29 +151,41 @@ def response(user_response):
     else:
         robo_response = sent_tokens[idx]
     
-    # Check if the user input has an additional response
-    if user_response in ADDITIONAL_RESPONSES:
-        robo_response = ADDITIONAL_RESPONSES[user_response]
-    
+    # Check if the user input has an additional response (exact or smart match)
+    additional = get_additional_response(user_response)
+    if additional is not None:
+        robo_response = additional
+
     return robo_response
 
 # Chatbot conversation loop
 flag = True
+session_message_count = 0
 print("Julie: My name is Julie. I will answer your queries about Chatbots. If you want to exit, type Bye!")
 while flag:
     user_response = input("You: ")
     user_response = user_response.lower()
-    
+
     if user_response != 'bye':
         if user_response in ('thanks', 'thank you'):
             flag = False
+            session_message_count += 1
             print("Julie: You're welcome.")
+        elif normalize_for_match(user_response) in HELP_TRIGGERS:
+            session_message_count += 1
+            print("Julie: " + HELP_MESSAGE)
         else:
             if greeting(user_response) is not None:
+                session_message_count += 1
                 print("Julie: " + greeting(user_response))
             else:
+                session_message_count += 1
                 print("Julie: " + response(user_response))
                 sent_tokens.remove(user_response)
     else:
         flag = False
-        print("Julie: Goodbye!Feel free to come back if you have more questions.")
+        session_message_count += 1
+        print("Julie: Goodbye! Feel free to come back if you have more questions.")
+
+    if not flag:
+        print(f"\nSession ended. You had {session_message_count} messages with Julie. See you next time!")
