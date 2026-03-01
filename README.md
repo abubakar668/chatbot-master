@@ -1,67 +1,44 @@
-# 🤖 Chatbot Project
+# Chatbot Project
 
-Welcome to the **Chatbot Project**!
-
-This is a simple chatbot designed to chat, answer questions, and even crack a joke or two. Whether you're here to learn, have fun, or build something cool, you're in the right place!
+A conversational chatbot that answers questions, handles greetings, and responds to predefined prompts. Built with Python, NLTK, and scikit-learn (TF-IDF and cosine similarity) for intent matching and corpus-based replies.
 
 ---
 
-## 🌟 Why I Built This
+## Features
 
-I created this project to explore how we can use AI to make tech more helpful and fun. The goal is to build a chatbot that’s:
-
-* Friendly and easy to use
-* Helpful with basic questions
-* A fun way to learn about Python and AI
-
-I hope you enjoy interacting with it — and if you have ideas to improve it, I’d love to hear from you!
+* **Greeting detection** — Responds to hello, hi, hey, and similar inputs
+* **Predefined Q&A** — Covers common questions (e.g. capitals, facts, jokes, recommendations) with flexible matching (punctuation and extra words allowed)
+* **Corpus-based answers** — Falls back to similarity matching against a text corpus for open-ended queries
+* **Help command** — Users can type `help` or "what can you do" to see example prompts
+* **Session summary** — On exit, displays the number of messages in the session
 
 ---
 
-## 🛠️ Getting Started
+## Requirements
 
-Follow these steps to get the chatbot up and running on your computer.
+* [Python](https://www.python.org/downloads/) 3.x
 
-### ✅ What You’ll Need
+---
 
-Before you begin, make sure you have:
+## Installation
 
-* [Python](https://www.python.org/downloads/) installed on your computer
+1. **Clone or download the project**
 
-### 📥 Installation Steps
+   ```bash
+   git clone https://github.com/your-username/chatbot-project.git
+   cd chatbot-project
+   ```
 
-1. **Download or Clone the Project**
-
-   * If you're using Git:
-
-     ```bash
-     git clone https://github.com/your-username/chatbot-project.git
-     cd chatbot-project
-     ```
-   * Or just download the ZIP and extract it.
-
-2. **(Optional) Create a Virtual Environment**
-
-   This helps keep your project’s dependencies organized.
+2. **(Recommended) Create a virtual environment**
 
    ```bash
    python -m venv venv
    ```
 
-   * To activate it:
+   * **Windows:** `venv\Scripts\activate`
+   * **macOS/Linux:** `source venv/bin/activate`
 
-     * On **Windows**:
-
-       ```bash
-       venv\Scripts\activate
-       ```
-     * On **macOS/Linux**:
-
-       ```bash
-       source venv/bin/activate
-       ```
-
-3. **Install the Required Libraries**
+3. **Install dependencies**
 
    ```bash
    pip install -r requirements.txt
@@ -69,51 +46,38 @@ Before you begin, make sure you have:
 
 ---
 
-## 🚀 How to Run the Chatbot
+## Running the Chatbot
 
-Once setup is done, you're ready to chat!
+From the project directory:
 
-1. Make sure you're in the project folder
+```bash
+python chatbot.py
+```
 
-2. Run the chatbot with:
-
-   ```bash
-   python chatbot.py
-   ```
-
-3. You'll see a welcome message — go ahead and start typing!
-
-   * Try asking a question
-   * Say “hello” or “bye”
-   * See how it responds
+The chatbot (Julie) will greet the user. Type questions or commands; type `bye` or `thanks` to end the session.
 
 ---
 
-## 🧠 Customize It
+## Customization
 
-Want to make the chatbot your own?
+Predefined responses and behavior can be adjusted in `chatbot.py`:
 
-* Open `chatbot.py`
-* Look for the **“Additional Responses”** section
-* Add your own custom replies to specific inputs
-
----
-
-## 🤝 Contributing
-
-Suggestions, ideas, or improvements? You're welcome to contribute!
-
-* Create an issue to report bugs or request features
-* Submit a pull request if you've made an improvement
+* **Additional responses** — Edit the `ADDITIONAL_RESPONSES` dictionary to add or change Q&A pairs
+* **Corpus** — Replace or edit `chatbot.txt` to change the knowledge base used for similarity-based answers
+* **Greetings** — Update `GREETING_INPUTS` and `GREETING_RESPONSES` to change greeting detection and replies
 
 ---
 
-## ⭐ Like This Project?
+## Project Structure
 
-If you found this chatbot useful or fun, please consider hitting the ⭐️ on GitHub — it helps others find the project too!
+| File          | Purpose                                      |
+|---------------|----------------------------------------------|
+| `chatbot.py`  | Main chatbot logic, matching, and conversation loop |
+| `chatbot.txt` | Text corpus for similarity-based responses   |
+| `requirements.txt` | Python dependencies                    |
 
 ---
 
-## 💬 Let’s Chat & Learn Together!
+## Support
 
-Thanks for checking out this project. Have fun exploring, and feel free to reach out with feedback!
+For bugs or change requests, open an issue or pull request in the repository.
