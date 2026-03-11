@@ -48,13 +48,21 @@ A conversational chatbot that answers questions, handles greetings, and responds
 
 ## Running the Chatbot
 
-From the project directory:
+**Terminal (CLI):** From the project directory:
 
 ```bash
 python chatbot.py
 ```
 
-The chatbot (Julie) will greet the user. Type questions or commands; type `bye` or `thanks` to end the session.
+Type questions or commands; type `bye` or `thanks` to end the session.
+
+**Web (business page + chat widget):** A demo site with the chatbot in a bottom-left widget:
+
+```bash
+python app.py
+```
+
+Then open [http://127.0.0.1:8080](http://127.0.0.1:8080) in your browser. To use another port: `PORT=5050 python app.py`. The page is presentation-only; only the chat widget is functional.
 
 ---
 
@@ -74,6 +82,8 @@ Predefined responses and behavior can be adjusted in `chatbot.py`:
 |---------------|----------------------------------------------|
 | `chatbot.py`  | Main chatbot logic, matching, and conversation loop |
 | `chatbot.txt` | Text corpus for similarity-based responses   |
+| `app.py`      | Flask app: serves the web page and `/chat` API for the widget |
+| `web/index.html` | Business landing page and chat widget UI   |
 | `requirements.txt` | Python dependencies                    |
 
 ---
