@@ -1,29 +1,58 @@
 #import necessary libraries
 import io
+import os
 import random
 import string # to process standard python strings
 import warnings
+# Show startup progress (stdout may be buffered when not in a TTY)
+def _log(msg):
+    if __name__ == "__main__":
+        print(msg, flush=True)
+
+if __name__ == "__main__":
+    _log("Loading chatbot (this may take a moment on first run)...")
+
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-import warnings
 warnings.filterwarnings('ignore')
 
 import nltk
 from nltk.stem import WordNetLemmatizer
+
+_log("Loading language data...")
 nltk.download('popular', quiet=True)
+nltk.download('punkt', quiet=True)
+nltk.download('punkt_tab', quiet=True)  # required by newer NLTK for sent_tokenize
+nltk.download('wordnet', quiet=True)
 
-# uncomment the following only the first time
-nltk.download('punkt') # first-time use only
-nltk.download('wordnet') # first-time use only
+# Read corpus as User/Bot Q&A pairs so we match questions and return answers only
+def load_corpus_pairs(filepath):
+    """Parse chatbot.txt into lists of (questions, answers) for accurate matching."""
+    with open(filepath, 'r', encoding='utf8', errors='ignore') as f:
+        text = f.read()
+    questions, answers = [], []
+    for block in text.split('\n\n'):
+        block = block.strip()
+        if not block:
+            continue
+        q_line, a_line = None, None
+        for line in block.split('\n'):
+            line_stripped = line.strip()
+            if not line_stripped:
+                continue
+            if line_stripped.lower().startswith('user:'):
+                q_line = line_stripped[len('user:'):].strip().lower()
+            elif line_stripped.lower().startswith('bot:'):
+                a_line = line_stripped[len('bot:'):].strip()
+        if q_line is not None and a_line is not None:
+            questions.append(q_line)
+            answers.append(a_line)
+    return questions, answers
 
-# Reading in the corpus
-with open('chatbot.txt', 'r', encoding='utf8', errors='ignore') as fin:
-    raw = fin.read().lower()
-
-#Tokenization
-sent_tokens = nltk.sent_tokenize(raw)
-word_tokens = nltk.word_tokenize(raw)
+_CHATBOT_DIR = os.path.dirname(os.path.abspath(__file__))
+_CORPUS_PATH = os.path.join(_CHATBOT_DIR, 'chatbot.txt')
+corpus_questions, corpus_answers = load_corpus_pairs(_CORPUS_PATH)
 
 #Preprocessing
 lemmer = WordNetLemmatizer()
@@ -50,6 +79,15 @@ def greeting(sentence):
 
 ADDITIONAL_RESPONSES = {
     "how are you": "I'm just a chatbot, but thanks for asking!",
+    "what is your name": "My name is Julie. How can I help you?",
+    "what's your name": "My name is Julie. How can I help you?",
+    "your name": "My name is Julie. How can I help you?",
+    "ur name": "My name is Julie. How can I help you?",
+    "tallest building": "The tallest building in the world is the Burj Khalifa in Dubai, UAE. It's over 828 meters (2,717 feet) tall.",
+    "highest building": "The tallest building in the world is the Burj Khalifa in Dubai, UAE. It's over 828 meters (2,717 feet) tall.",
+    "tallest building in the world": "The tallest building in the world is the Burj Khalifa in Dubai, UAE. It's over 828 meters (2,717 feet) tall.",
+    "do you like cricket": "I don't have personal preferences, but I'm here to chat about anything—including cricket!",
+    "you like cricket": "I don't have personal preferences, but I'm here to chat about anything—including cricket!",
     "tell me a joke": "Why don't scientists trust atoms? Because they make up everything!",
     "who created you": "I was created by a team of developers, mostly Henry",
     "bye": "Goodbye! Feel free to come back if you have more questions.",
@@ -134,58 +172,79 @@ def get_additional_response(user_response):
             return ADDITIONAL_RESPONSES[key]
     return None
 
-# Update the response function to include additional responses
+# Minimum similarity to accept a corpus match (avoids wrong answers for unrelated questions)
+SIMILARITY_THRESHOLD = 0.25
+
 def response(user_response):
-    robo_response = ''
-    sent_tokens.append(user_response)
-    TfidfVec = TfidfVectorizer(tokenizer=LemNormalize, stop_words='english')
-    tfidf = TfidfVec.fit_transform(sent_tokens)
-    vals = cosine_similarity(tfidf[-1], tfidf)
-    idx = vals.argsort()[0][-2]
-    flat = vals.flatten()
-    flat.sort()
-    req_tfidf = flat[-2]
-    
-    if req_tfidf == 0:
-        robo_response = "I am sorry, I don't understand you."
-    else:
-        robo_response = sent_tokens[idx]
-    
-    # Check if the user input has an additional response (exact or smart match)
+    # 1) Predefined answers take priority (exact or smart match)
     additional = get_additional_response(user_response)
     if additional is not None:
-        robo_response = additional
+        return additional
 
-    return robo_response
+    # 2) Match user input to corpus *questions*, then return the corresponding *answer*
+    if not corpus_questions or not corpus_answers:
+        return "I am sorry, I don't understand you."
+    TfidfVec = TfidfVectorizer(tokenizer=LemNormalize, stop_words='english')
+    question_matrix = TfidfVec.fit_transform(corpus_questions)
+    user_vec = TfidfVec.transform([user_response])
+    vals = cosine_similarity(user_vec, question_matrix)[0]
+    idx = vals.argmax()
+    best_sim = float(vals[idx])
 
-# Chatbot conversation loop
-flag = True
-session_message_count = 0
-print("Julie: My name is Julie. I will answer your queries about Chatbots. If you want to exit, type Bye!")
-while flag:
-    user_response = input("You: ")
-    user_response = user_response.lower()
+    if best_sim < SIMILARITY_THRESHOLD:
+        return "I am sorry, I don't understand you."
+    return corpus_answers[idx]
 
-    if user_response != 'bye':
-        if user_response in ('thanks', 'thank you'):
+
+def get_reply(user_message):
+    """
+    Single-turn reply for use by web/API. Returns (reply_text, session_ended).
+    reply_text is the bot message only (no 'Julie:' prefix). session_ended is True for bye/thanks.
+    """
+    if not user_message or not isinstance(user_message, str):
+        return "Please type a message.", False
+    msg = user_message.lower().strip()
+    if msg == "bye":
+        return "Goodbye! Feel free to come back if you have more questions.", True
+    if msg in ("thanks", "thank you"):
+        return "You're welcome.", True
+    if normalize_for_match(msg) in HELP_TRIGGERS:
+        return HELP_MESSAGE, False
+    g = greeting(msg)
+    if g is not None:
+        return g, False
+    return response(msg), False
+
+
+# Chatbot conversation loop (CLI only)
+if __name__ == "__main__":
+    flag = True
+    session_message_count = 0
+    _log("Ready.")
+    print("Julie: My name is Julie. I will answer your queries about Chatbots. If you want to exit, type Bye!")
+    while flag:
+        user_response = input("You: ")
+        user_response = user_response.lower()
+
+        if user_response != "bye":
+            if user_response in ("thanks", "thank you"):
+                flag = False
+                session_message_count += 1
+                print("Julie: You're welcome.")
+            elif normalize_for_match(user_response) in HELP_TRIGGERS:
+                session_message_count += 1
+                print("Julie: " + HELP_MESSAGE)
+            else:
+                if greeting(user_response) is not None:
+                    session_message_count += 1
+                    print("Julie: " + greeting(user_response))
+                else:
+                    session_message_count += 1
+                    print("Julie: " + response(user_response))
+        else:
             flag = False
             session_message_count += 1
-            print("Julie: You're welcome.")
-        elif normalize_for_match(user_response) in HELP_TRIGGERS:
-            session_message_count += 1
-            print("Julie: " + HELP_MESSAGE)
-        else:
-            if greeting(user_response) is not None:
-                session_message_count += 1
-                print("Julie: " + greeting(user_response))
-            else:
-                session_message_count += 1
-                print("Julie: " + response(user_response))
-                sent_tokens.remove(user_response)
-    else:
-        flag = False
-        session_message_count += 1
-        print("Julie: Goodbye! Feel free to come back if you have more questions.")
+            print("Julie: Goodbye! Feel free to come back if you have more questions.")
 
-    if not flag:
-        print(f"\nSession ended. You had {session_message_count} messages with Julie. See you next time!")
+        if not flag:
+            print(f"\nSession ended. You had {session_message_count} messages with Julie. See you next time!")
